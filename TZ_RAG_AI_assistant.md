@@ -54,7 +54,7 @@
 
 ### Этап 0. Подготовка окружения
 - [+] Создать репозиторий, настроить `.gitignore`, `pyproject.toml`/`requirements.txt`
-- [ ] Настроить `ruff` и `mypy`, добавить pre-commit хуки
+- [+] Настроить `ruff` и `mypy`, добавить pre-commit хуки
 - [ ] Поднять `docker-compose.yml` с сервисами: `db` (Postgres с pgvector), `redis`
 - [ ] Написать `Dockerfile` для приложения (пока пустого FastAPI со `/health`)
 - [ ] Проверить, что `docker-compose up` поднимает всё и `/health` отвечает 200
