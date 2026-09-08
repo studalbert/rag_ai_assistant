@@ -1,4 +1,20 @@
 services:
+  api:
+    build: .
+    container_name: rag_api
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/code/app   # монтируем код, чтобы --reload подхватывал изменения без пересборки образа
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   db:
     image: pgvector/pgvector:pg16   # Postgres 16 с уже вкомпилированным расширением pgvector
     container_name: rag_db
