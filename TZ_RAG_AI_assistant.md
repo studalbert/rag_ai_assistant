@@ -60,8 +60,8 @@
 - [+] Проверить, что `docker-compose up` поднимает всё и `/health` отвечает 200
 
 ### Этап 1. Данные и авторизация
-- [ ] Спроектировать модели: `User`, `Workspace`, `Document`, `Chunk`, `Chat`, `Message`
-- [ ] Настроить асинхронный SQLAlchemy + первую Alembic-миграцию
+- [+] Спроектировать модели: `User`, `Workspace`, `Document`, `Chunk`, `Chat`, `Message`
+- [+] Настроить асинхронный SQLAlchemy + первую Alembic-миграцию
 - [ ] Реализовать регистрацию/логин по email+паролю, хэширование паролей (passlib/argon2)
 - [ ] Реализовать выдачу JWT access+refresh токенов, эндпоинт refresh
 - [ ] Добавить OAuth2 через Google (можно на этом этапе, можно вернуться позже)

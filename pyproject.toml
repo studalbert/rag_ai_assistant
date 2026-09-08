@@ -12,6 +12,11 @@ target-version = "py311"
 select = ["E", "F", "I", "UP", "B"]  # базовый набор: ошибки, неиспользуемые импорты, сортировка импортов, устаревший синтаксис, bugbear
 ignore = []
 
+[tool.ruff.lint.flake8-bugbear]
+# Depends/Query/Header и т.д. — стандартный паттерн Dependency Injection в FastAPI,
+# вызов функции в дефолтном значении здесь осознанный, а не баг
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header", "fastapi.Body", "fastapi.Path"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = false          # начни мягко, ужесточишь позже (strict = true), когда проект разрастётся
