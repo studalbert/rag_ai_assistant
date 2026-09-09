@@ -18,6 +18,7 @@ ignore = []
 extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header", "fastapi.Body", "fastapi.Path"]
 
 [tool.mypy]
+plugins = ["pydantic.mypy"]
 python_version = "3.11"
 strict = false          # начни мягко, ужесточишь позже (strict = true), когда проект разрастётся
 ignore_missing_imports = true
