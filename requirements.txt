@@ -8,6 +8,10 @@ asyncpg==0.30.0
 alembic==1.13.3
 pgvector==0.3.6
 
+# --- Auth ---
+passlib[argon2]==1.7.4
+pydantic[email]==2.9.2
+
 # --- Config ---
 pydantic-settings==2.6.0
 python-dotenv==1.0.1
