@@ -8,7 +8,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./app:/code/app   # монтируем код, чтобы --reload подхватывал изменения без пересборки образа
+      - ./app:/code/app             # монтируем код, чтобы --reload подхватывал изменения без пересборки образа
+      - ./tests:/code/tests
+      - ./pyproject.toml:/code/pyproject.toml
     depends_on:
       db:
         condition: service_healthy
