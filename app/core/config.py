@@ -12,5 +12,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 30
 
+    upload_dir: str = "/code/uploads"
+    max_upload_size_mb: int = 20
+
 
 settings = Settings()
