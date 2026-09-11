@@ -1,5 +1,6 @@
 import os
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -7,7 +8,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.api.deps import get_storage
 from app.core.db import get_db
+from app.core.storage import LocalFileStorage
 from app.main import app
 from app.models import Base
 
@@ -56,3 +59,17 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+@pytest_asyncio.fixture(autouse=True)
+def override_storage(tmp_path: Path) -> AsyncGenerator[None, None]:
+    """Подменяет реальное хранилище на временную директорию, уникальную для каждого теста.
+
+    Без этого тесты писали бы файлы в общий /code/uploads внутри контейнера —
+    это и замусоривает реальное хранилище, и может конфликтовать между тестами.
+    """
+    app.dependency_overrides[get_storage] = lambda: LocalFileStorage(
+        base_dir=str(tmp_path / "uploads")
+    )
+    yield
+    del app.dependency_overrides[get_storage]
