@@ -18,6 +18,22 @@ services:
       redis:
         condition: service_healthy
 
+  worker:
+    build: .
+    container_name: rag_worker
+    restart: unless-stopped
+    command: celery -A app.core.celery_app worker --loglevel=info
+    env_file:
+      - .env
+    volumes:
+      - ./app:/code/app
+      - uploads_data:/code/uploads   # worker должен видеть те же файлы, что и api
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   db:
     image: pgvector/pgvector:pg16   # Postgres 16 с уже вкомпилированным расширением pgvector
     container_name: rag_db

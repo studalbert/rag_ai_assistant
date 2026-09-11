@@ -14,6 +14,10 @@ passlib[argon2]==1.7.4
 pydantic[email]==2.9.2
 pyjwt==2.9.0
 
+# --- Background tasks ---
+celery==5.4.0
+redis==5.2.0
+
 # --- Config ---
 pydantic-settings==2.6.0
 python-dotenv==1.0.1

@@ -7,6 +7,7 @@ from app.core.storage import FileStorage
 from app.models.document import Document
 from app.repositories.document_repository import DocumentRepository
 from app.services.workspace_service import WorkspaceService
+from app.tasks.document_tasks import process_document
 
 # Разрешённые типы файлов на этом этапе — расширим при добавлении парсинга под каждый формат
 ALLOWED_CONTENT_TYPES = {
@@ -52,12 +53,18 @@ class DocumentService:
 
         file_path = await self.storage.save(content, filename)
 
-        return await self.repo.create(
+        document = await self.repo.create(
             workspace_id=workspace_id,
             filename=filename,
             file_path=file_path,
             content_type=content_type,
         )
+
+        # .delay() — асинхронная (в смысле Celery, не asyncio) постановка задачи в очередь:
+        # мы не ждём, пока файл обработается, эндпоинт сразу возвращает ответ пользователю
+        process_document.delay(str(document.id))
+
+        return document
 
     async def list_documents(self, workspace_id: uuid.UUID, owner_id: uuid.UUID) -> list[Document]:
         await self.workspace_service.get_owned_workspace(workspace_id, owner_id)
