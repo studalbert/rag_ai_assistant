@@ -15,5 +15,9 @@ class Settings(BaseSettings):
     upload_dir: str = "/code/uploads"
     max_upload_size_mb: int = 20
 
+    chunk_size: int = 1000       # в символах — простое приближение;
+                                  # точнее было бы считать в токенах, но для MVP этого достаточно
+    chunk_overlap: int = 200
+
 
 settings = Settings()

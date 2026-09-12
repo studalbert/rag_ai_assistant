@@ -19,4 +19,7 @@ celery_app.conf.update(
     # Celery повторно отдаст её другому воркеру
     task_acks_late=True,
     worker_prefetch_multiplier=1,
+    # Явно фиксируем поведение retry на старте — в Celery 6.0 дефолт меняется,
+    # лучше не зависеть от того, что "было по умолчанию раньше"
+    broker_connection_retry_on_startup=True,
 )
