@@ -12,10 +12,9 @@ if TYPE_CHECKING:
     from app.models.document import Document
 
 # Размерность эмбеддинга зависит от модели:
-# text-embedding-3-small (OpenAI) -> 1536
-# многие открытые модели через sentence-transformers -> 384 или 768
+# intfloat/multilingual-e5-base (наша локальная модель) -> 768
 # Зафиксируй значение под свою модель ДО первой миграции — поменять потом сложнее.
-EMBEDDING_DIM = 1536
+EMBEDDING_DIM = 768
 
 
 class Chunk(Base, TimestampMixin):

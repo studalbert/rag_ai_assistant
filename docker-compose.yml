@@ -11,6 +11,8 @@ services:
       - ./app:/code/app             # монтируем код, чтобы --reload подхватывал изменения без пересборки образа
       - ./tests:/code/tests
       - ./pyproject.toml:/code/pyproject.toml
+      - ./alembic.ini:/code/alembic.ini
+      - ./migrations:/code/migrations
       - uploads_data:/code/uploads
     depends_on:
       db:
@@ -28,6 +30,7 @@ services:
     volumes:
       - ./app:/code/app
       - uploads_data:/code/uploads   # worker должен видеть те же файлы, что и api
+      - hf_cache:/root/.cache/huggingface   # кэш весов модели между перезапусками/пересборками
     depends_on:
       db:
         condition: service_healthy
@@ -67,3 +70,4 @@ services:
 volumes:
   pgdata:
   uploads_data:
+  hf_cache:

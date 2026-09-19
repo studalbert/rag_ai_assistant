@@ -6,8 +6,10 @@ from app.core.config import settings
 from app.core.db import AsyncSessionLocal, engine
 from app.core.storage import LocalFileStorage
 from app.models.enums import DocumentStatus
+from app.repositories.chunk_repository import ChunkRepository
 from app.repositories.document_repository import DocumentRepository
 from app.services.chunking import chunk_text
+from app.services.embeddings import get_embedding_provider
 from app.services.text_extraction import TextExtractionError, extract_text
 
 
@@ -46,9 +48,23 @@ async def _process_document_async(document_id: uuid.UUID) -> None:
                 await db.commit()
                 return
 
-            # На следующем шаге здесь появится: посчитать эмбеддинги для каждого чанка ->
-            # сохранить Chunk-записи в БД -> только после этого статус меняется на READY.
-            print(f"Document {document_id}: split into {len(chunks)} chunks")  # noqa: T201
+            try:
+                embedding_provider = get_embedding_provider()
+                embeddings = await embedding_provider.embed(chunks)
+            except Exception as exc:  # noqa: BLE001 — намеренно широкий перехват:
+                # сбой у внешнего провайдера может прийти как угодно (таймаут,
+                # rate limit, невалидный ключ и т.д.), нам важно любой из них
+                # аккуратно перевести в статус failed, а не уронить воркер
+                document.status = DocumentStatus.FAILED
+                document.error_message = f"Embedding generation failed: {exc}"
+                await db.commit()
+                return
+
+            chunk_repo = ChunkRepository(db)
+            await chunk_repo.bulk_create(document.id, chunks, embeddings)
+
+            document.status = DocumentStatus.READY
+            await db.commit()
     finally:
         # Критично для Celery: каждый вызов process_document оборачивается в свой
         # собственный asyncio.run() (новый event loop). Пул соединений asyncpg привязан

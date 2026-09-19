@@ -19,5 +19,9 @@ class Settings(BaseSettings):
                                   # точнее было бы считать в токенах, но для MVP этого достаточно
     chunk_overlap: int = 200
 
+    # Название модели на HuggingFace Hub — sentence-transformers скачает её
+    # автоматически при первом использовании и закэширует локально
+    embedding_model: str = "intfloat/multilingual-e5-base"
+
 
 settings = Settings()
