@@ -9,7 +9,14 @@ from app.core.config import settings
 
 class EmbeddingProvider(Protocol):
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        """Возвращает по одному вектору на каждый текст, в том же порядке."""
+        """Возвращает по одному вектору на каждый текст документа, в том же порядке."""
+        ...
+
+    async def embed_query(self, text: str) -> list[float]:
+        """Возвращает вектор для поискового запроса (вопроса пользователя).
+
+        Отдельный метод, а не просто embed([text])[0] — потому что у модели e5
+        разные префиксы для документов и запросов, и смешивать их нельзя."""
         ...
 
 
@@ -42,6 +49,13 @@ class LocalEmbeddingProvider:
             self.model.encode, prefixed_texts, normalize_embeddings=True
         )
         return embeddings.tolist()
+
+    async def embed_query(self, text: str) -> list[float]:
+        prefixed_text = f"query: {text}"
+        embedding = await asyncio.to_thread(
+            self.model.encode, [prefixed_text], normalize_embeddings=True
+        )
+        return embedding[0].tolist()
 
 
 def get_embedding_provider() -> EmbeddingProvider:

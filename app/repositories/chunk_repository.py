@@ -1,8 +1,10 @@
 import uuid
 
+from sqlalchemy import Row, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chunk import Chunk
+from app.models.document import Document
 
 
 class ChunkRepository:
@@ -21,3 +23,24 @@ class ChunkRepository:
         ]
         self.db.add_all(chunks)
         await self.db.commit()
+
+    async def search_similar(
+        self, workspace_id: uuid.UUID, query_embedding: list[float], top_k: int
+    ) -> list[Row]:
+        """Топ-k чанков по косинусному расстоянию, отфильтрованных по workspace.
+
+        cosine_distance возвращает 0 для идентичных векторов и 2 для противоположных —
+        чем меньше, тем более похожи. Сортируем по возрастанию расстояния (ASC),
+        т.е. самые похожие идут первыми.
+        """
+        distance = Chunk.embedding.cosine_distance(query_embedding)
+
+        result = await self.db.execute(
+            select(Chunk, Document.filename, distance.label("distance"))
+            .join(Document, Chunk.document_id == Document.id)
+            .where(Document.workspace_id == workspace_id)
+            .order_by(distance)
+            .limit(top_k)
+        )
+        return list(result.all())
+
