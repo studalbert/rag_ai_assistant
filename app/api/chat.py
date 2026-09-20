@@ -10,7 +10,7 @@ from app.api.deps import get_current_user
 from app.core.db import get_db
 from app.models.user import User
 from app.schemas.chat import AskRequest, AskResponse
-from app.services.chat_service import ChatService
+from app.services.chat_service import ChatNotFoundError, ChatService
 from app.services.llm import get_llm_provider
 from app.services.workspace_service import WorkspaceNotFoundError
 
@@ -48,13 +48,14 @@ async def ask_stream(
 ) -> StreamingResponse:
     service = ChatService(db)
     try:
-        sources, messages = await service.prepare_ask(
-            workspace_id, current_user.id, body.question, body.top_k
+        chat_id, sources, messages = await service.prepare_ask(
+            workspace_id, current_user.id, body.question, body.top_k, body.chat_id
         )
-    except WorkspaceNotFoundError as exc:
+    except (WorkspaceNotFoundError, ChatNotFoundError) as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     async def event_generator() -> AsyncIterator[str]:
+        yield _sse({"type": "chat_id", "chat_id": str(chat_id)})
         yield _sse(
             {
                 "type": "sources",
@@ -63,8 +64,20 @@ async def ask_stream(
         )
 
         llm_provider = get_llm_provider()
-        async for token in llm_provider.stream_completion(messages):
-            yield _sse({"type": "token", "content": token})
+        answer_parts: list[str] = []
+        try:
+            async for token in llm_provider.stream_completion(messages):
+                answer_parts.append(token)
+                yield _sse({"type": "token", "content": token})
+        except Exception as exc:  # noqa: BLE001 — сбой у внешнего провайдера может
+            # прийти как угодно (таймаут, лимиты, недоступность). Отдаём это как
+            # SSE-событие ошибки, не сохраняя неполный ответ в историю чата.
+            yield _sse({"type": "error", "message": str(exc)})
+            return
+
+        full_answer = "".join(answer_parts)
+        source_chunk_ids = [source.chunk_id for source in sources]
+        await service.save_exchange(chat_id, body.question, full_answer, source_chunk_ids)
 
         yield _sse({"type": "done"})
 
