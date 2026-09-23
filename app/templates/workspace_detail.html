@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="/web/workspaces">&larr; Ко всем базам знаний</a></p>
+<h2>{{ workspace.name }}</h2>
+
+<h3>Документы</h3>
+<form
+    hx-post="/web/workspaces/{{ workspace.id }}/documents"
+    hx-target="#document-list"
+    hx-swap="outerHTML"
+    hx-encoding="multipart/form-data"
+>
+    <fieldset role="group">
+        <input type="file" name="file" required accept=".pdf,.docx,.txt,.md">
+        <button type="submit">Загрузить</button>
+    </fieldset>
+</form>
+
+{% include "partials/document_list.html" %}
+{% endblock %}

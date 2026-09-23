@@ -1,0 +1,16 @@
+<ul id="workspace-list">
+    {% for workspace in workspaces %}
+    <li id="workspace-{{ workspace.id }}">
+        <a href="/web/workspaces/{{ workspace.id }}">{{ workspace.name }}</a>
+        <button
+            class="secondary outline"
+            hx-delete="/web/workspaces/{{ workspace.id }}"
+            hx-target="#workspace-{{ workspace.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="Удалить базу знаний «{{ workspace.name }}»? Все документы и чаты внутри тоже удалятся."
+        >Удалить</button>
+    </li>
+    {% else %}
+    <li>Пока нет ни одной базы знаний — создайте первую выше.</li>
+    {% endfor %}
+</ul>

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<article style="max-width: 400px; margin: 3rem auto;">
+    <h2>Регистрация</h2>
+    {% if error %}<p style="color: var(--pico-del-color);">{{ error }}</p>{% endif %}
+    <form method="post" action="/web/register">
+        <label>Email
+            <input type="email" name="email" required autofocus>
+        </label>
+        <label>Пароль
+            <input type="password" name="password" required minlength="6">
+        </label>
+        <button type="submit">Зарегистрироваться</button>
+    </form>
+    <p>Уже есть аккаунт? <a href="/web/login">Войти</a></p>
+</article>
+{% endblock %}

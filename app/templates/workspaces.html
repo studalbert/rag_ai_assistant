@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Мои базы знаний</h2>
+
+<form
+    hx-post="/web/workspaces"
+    hx-target="#workspace-list"
+    hx-swap="outerHTML"
+    hx-on::after-request="this.reset()"
+>
+    <fieldset role="group">
+        <input type="text" name="name" placeholder="Название новой базы знаний" required>
+        <button type="submit">Создать</button>
+    </fieldset>
+</form>
+
+{% include "partials/workspace_list.html" %}
+{% endblock %}
