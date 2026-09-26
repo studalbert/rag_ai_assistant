@@ -3,6 +3,8 @@
 <p><a href="/web/workspaces">&larr; Ко всем базам знаний</a></p>
 <h2>{{ workspace.name }}</h2>
 
+<p><a href="/web/workspaces/{{ workspace.id }}/chat" role="button">Открыть чат</a></p>
+
 <h3>Документы</h3>
 <form
     hx-post="/web/workspaces/{{ workspace.id }}/documents"

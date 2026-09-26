@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,16 +12,20 @@ from app.models.document import Document
 from app.models.enums import DocumentStatus
 from app.models.user import User
 from app.schemas.user import UserCreate
+from app.schemas.chat import AskRequest
 from app.services.auth_service import (
     AuthService,
     EmailAlreadyRegisteredError,
     InvalidCredentialsError,
 )
+from app.services.chat_service import ChatNotFoundError, ChatService
+from app.services.chat_streaming import stream_ask_response
 from app.services.document_service import (
     DocumentService,
     FileTooLargeError,
     UnsupportedFileTypeError,
 )
+from app.services.llm import get_llm_provider
 from app.services.workspace_service import WorkspaceNotFoundError, WorkspaceService
 from app.web.deps import ACCESS_TOKEN_COOKIE, get_current_web_user
 
@@ -245,4 +249,54 @@ async def document_list_partial(
             "documents": documents,
             "has_active_documents": _has_active_documents(documents),
         },
+    )
+
+
+# --- Чат ---
+
+
+@router.get(
+    "/workspaces/{workspace_id}/chat",
+    response_class=HTMLResponse,
+    response_model=None,
+)
+async def chat_page(
+    request: Request,
+    workspace_id: uuid.UUID,
+    current_user: User = Depends(get_current_web_user),
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse | RedirectResponse:
+    workspace_service = WorkspaceService(db)
+    try:
+        workspace = await workspace_service.get_owned_workspace(workspace_id, current_user.id)
+    except WorkspaceNotFoundError:
+        return RedirectResponse(url="/web/workspaces", status_code=status.HTTP_303_SEE_OTHER)
+
+    return templates.TemplateResponse(
+        request, "chat.html", {"user": current_user, "workspace": workspace}
+    )
+
+
+@router.post("/workspaces/{workspace_id}/ask/stream")
+async def ask_stream_web(
+    workspace_id: uuid.UUID,
+    body: AskRequest,
+    current_user: User = Depends(get_current_web_user),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Тот же самый /ask/stream, что в JSON API, но с cookie-авторизацией вместо
+    JWT-заголовка — браузер не может прочитать httpOnly-cookie в JS, поэтому
+    нельзя просто переиспользовать эндпоинт из app/api/chat.py напрямую."""
+    service = ChatService(db)
+    try:
+        chat_id, sources, messages = await service.prepare_ask(
+            workspace_id, current_user.id, body.question, body.top_k, body.chat_id
+        )
+    except (WorkspaceNotFoundError, ChatNotFoundError) as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    llm_provider = get_llm_provider()
+    return StreamingResponse(
+        stream_ask_response(llm_provider, service, chat_id, body.question, sources, messages),
+        media_type="text/event-stream",
     )

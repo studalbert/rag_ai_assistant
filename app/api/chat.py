@@ -1,6 +1,4 @@
-import json
 import uuid
-from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -11,6 +9,7 @@ from app.core.db import get_db
 from app.models.user import User
 from app.schemas.chat import AskRequest, AskResponse
 from app.services.chat_service import ChatNotFoundError, ChatService
+from app.services.chat_streaming import stream_ask_response
 from app.services.llm import get_llm_provider
 from app.services.workspace_service import WorkspaceNotFoundError
 
@@ -35,10 +34,6 @@ async def ask(
     return AskResponse(sources=sources)
 
 
-def _sse(event: dict) -> str:
-    return f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-
-
 @router.post("/ask/stream")
 async def ask_stream(
     workspace_id: uuid.UUID,
@@ -54,31 +49,8 @@ async def ask_stream(
     except (WorkspaceNotFoundError, ChatNotFoundError) as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
-    async def event_generator() -> AsyncIterator[str]:
-        yield _sse({"type": "chat_id", "chat_id": str(chat_id)})
-        yield _sse(
-            {
-                "type": "sources",
-                "sources": [source.model_dump(mode="json") for source in sources],
-            }
-        )
-
-        llm_provider = get_llm_provider()
-        answer_parts: list[str] = []
-        try:
-            async for token in llm_provider.stream_completion(messages):
-                answer_parts.append(token)
-                yield _sse({"type": "token", "content": token})
-        except Exception as exc:  # noqa: BLE001 — сбой у внешнего провайдера может
-            # прийти как угодно (таймаут, лимиты, недоступность). Отдаём это как
-            # SSE-событие ошибки, не сохраняя неполный ответ в историю чата.
-            yield _sse({"type": "error", "message": str(exc)})
-            return
-
-        full_answer = "".join(answer_parts)
-        source_chunk_ids = [source.chunk_id for source in sources]
-        await service.save_exchange(chat_id, body.question, full_answer, source_chunk_ids)
-
-        yield _sse({"type": "done"})
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    llm_provider = get_llm_provider()
+    return StreamingResponse(
+        stream_ask_response(llm_provider, service, chat_id, body.question, sources, messages),
+        media_type="text/event-stream",
+    )
