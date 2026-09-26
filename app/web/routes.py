@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Form, Request, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_storage
 from app.core.db import get_db
 from app.core.storage import FileStorage
+from app.models.document import Document
+from app.models.enums import DocumentStatus
 from app.models.user import User
 from app.schemas.user import UserCreate
 from app.services.auth_service import (
@@ -25,6 +27,11 @@ from app.web.deps import ACCESS_TOKEN_COOKIE, get_current_web_user
 
 router = APIRouter(prefix="/web", tags=["web"])
 templates = Jinja2Templates(directory="app/templates")
+
+
+def _has_active_documents(documents: list[Document]) -> bool:
+    active_statuses = (DocumentStatus.PENDING, DocumentStatus.PROCESSING)
+    return any(document.status in active_statuses for document in documents)
 
 
 # --- Авторизация ---
@@ -154,7 +161,13 @@ async def workspace_detail_page(
     return templates.TemplateResponse(
         request,
         "workspace_detail.html",
-        {"user": current_user, "workspace": workspace, "documents": documents},
+        {
+            "user": current_user,
+            "workspace": workspace,
+            "workspace_id": workspace_id,
+            "documents": documents,
+            "has_active_documents": _has_active_documents(documents),
+        },
     )
 
 
@@ -192,5 +205,44 @@ async def upload_document_web(
     return templates.TemplateResponse(
         request,
         "partials/document_list.html",
-        {"documents": documents, "upload_error": upload_error},
+        {
+            "workspace_id": workspace_id,
+            "documents": documents,
+            "upload_error": upload_error,
+            "has_active_documents": _has_active_documents(documents),
+        },
+    )
+
+
+@router.get(
+    "/workspaces/{workspace_id}/documents/list",
+    response_class=HTMLResponse,
+    response_model=None,
+)
+async def document_list_partial(
+    request: Request,
+    workspace_id: uuid.UUID,
+    current_user: User = Depends(get_current_web_user),
+    db: AsyncSession = Depends(get_db),
+    storage: FileStorage = Depends(get_storage),
+) -> HTMLResponse:
+    """Эндпоинт для htmx-поллинга: возвращает тот же партиал, что и после
+    загрузки файла. Если среди документов ещё остались pending/processing —
+    партиал сам включит в себя hx-trigger и продолжит опрашивать этот же
+    адрес каждые 2 секунды; как только все документы дойдут до ready/failed —
+    hx-trigger пропадёт из ответа, и поллинг остановится сам собой."""
+    service = DocumentService(db, storage)
+    try:
+        documents = await service.list_documents(workspace_id, current_user.id)
+    except WorkspaceNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    return templates.TemplateResponse(
+        request,
+        "partials/document_list.html",
+        {
+            "workspace_id": workspace_id,
+            "documents": documents,
+            "has_active_documents": _has_active_documents(documents),
+        },
     )

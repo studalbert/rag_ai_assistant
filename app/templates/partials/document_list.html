@@ -1,15 +1,24 @@
-{% if upload_error %}
-<p style="color: var(--pico-del-color);">{{ upload_error }}</p>
-{% endif %}
-<ul id="document-list">
-    {% for document in documents %}
-    <li>
-        {{ document.filename }} — <mark>{{ document.status.value }}</mark>
-        {% if document.error_message %}
-        <br><small style="color: var(--pico-del-color);">{{ document.error_message }}</small>
-        {% endif %}
-    </li>
-    {% else %}
-    <li>Пока нет загруженных документов.</li>
-    {% endfor %}
-</ul>
+<div
+    id="document-list"
+    hx-get="/web/workspaces/{{ workspace_id }}/documents/list"
+    {% if has_active_documents %}
+    hx-trigger="every 2s"
+    hx-swap="outerHTML"
+    {% endif %}
+>
+    {% if upload_error %}
+    <p style="color: var(--pico-del-color);">{{ upload_error }}</p>
+    {% endif %}
+    <ul>
+        {% for document in documents %}
+        <li>
+            {{ document.filename }} — <mark>{{ document.status.value }}</mark>
+            {% if document.error_message %}
+            <br><small style="color: var(--pico-del-color);">{{ document.error_message }}</small>
+            {% endif %}
+        </li>
+        {% else %}
+        <li>Пока нет загруженных документов.</li>
+        {% endfor %}
+    </ul>
+</div>
