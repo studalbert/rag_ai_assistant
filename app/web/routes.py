@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, status
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,8 +11,8 @@ from app.core.storage import FileStorage
 from app.models.document import Document
 from app.models.enums import DocumentStatus
 from app.models.user import User
-from app.schemas.user import UserCreate
 from app.schemas.chat import AskRequest
+from app.schemas.user import UserCreate
 from app.services.auth_service import (
     AuthService,
     EmailAlreadyRegisteredError,
@@ -21,6 +21,7 @@ from app.services.auth_service import (
 from app.services.chat_service import ChatNotFoundError, ChatService
 from app.services.chat_streaming import stream_ask_response
 from app.services.document_service import (
+    DocumentNotFoundError,
     DocumentService,
     FileTooLargeError,
     UnsupportedFileTypeError,
@@ -249,6 +250,28 @@ async def document_list_partial(
             "documents": documents,
             "has_active_documents": _has_active_documents(documents),
         },
+    )
+
+
+@router.get("/workspaces/{workspace_id}/documents/{document_id}/download")
+async def download_document_web(
+    workspace_id: uuid.UUID,
+    document_id: uuid.UUID,
+    current_user: User = Depends(get_current_web_user),
+    db: AsyncSession = Depends(get_db),
+    storage: FileStorage = Depends(get_storage),
+) -> Response:
+    service = DocumentService(db, storage)
+    try:
+        document = await service.get_owned_document(workspace_id, current_user.id, document_id)
+    except (WorkspaceNotFoundError, DocumentNotFoundError) as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    content = await storage.read(document.file_path)
+    return Response(
+        content=content,
+        media_type=document.content_type,
+        headers={"Content-Disposition": f'inline; filename="{document.filename}"'},
     )
 
 

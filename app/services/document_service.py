@@ -26,6 +26,12 @@ class FileTooLargeError(Exception):
     pass
 
 
+class DocumentNotFoundError(Exception):
+    """Тот же принцип, что и с WorkspaceNotFoundError: документ из чужого
+    workspace снаружи выглядит так же, как несуществующий — 404."""
+    pass
+
+
 class DocumentService:
     def __init__(self, db: AsyncSession, storage: FileStorage):
         self.repo = DocumentRepository(db)
@@ -69,3 +75,13 @@ class DocumentService:
     async def list_documents(self, workspace_id: uuid.UUID, owner_id: uuid.UUID) -> list[Document]:
         await self.workspace_service.get_owned_workspace(workspace_id, owner_id)
         return await self.repo.list_by_workspace(workspace_id)
+
+    async def get_owned_document(
+        self, workspace_id: uuid.UUID, owner_id: uuid.UUID, document_id: uuid.UUID
+    ) -> Document:
+        await self.workspace_service.get_owned_workspace(workspace_id, owner_id)
+
+        document = await self.repo.get_by_id(document_id)
+        if document is None or document.workspace_id != workspace_id:
+            raise DocumentNotFoundError(f"Document {document_id} not found")
+        return document

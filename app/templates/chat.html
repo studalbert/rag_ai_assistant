@@ -39,14 +39,45 @@
 
     function addSources(sources) {
         if (!sources.length) return;
-        const list = document.createElement("ul");
+        const list = document.createElement("ol");
         list.style.fontSize = "0.85em";
-        sources.forEach((source, index) => {
+
+        sources.forEach((source) => {
             const li = document.createElement("li");
-            const similarity = source.similarity.toFixed(2);
-            li.textContent = "[" + (index + 1) + "] " + source.filename + " (сходство: " + similarity + ")";
+
+            const link = document.createElement("a");
+            link.href = "/web/workspaces/" + workspaceId + "/documents/" + source.document_id + "/download";
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.textContent = source.filename;
+
+            const meta = document.createElement("span");
+            meta.textContent = " — сходство " + source.similarity.toFixed(2) + " — ";
+
+            const toggle = document.createElement("a");
+            toggle.href = "#";
+            toggle.style.fontStyle = "italic";
+            toggle.textContent = "показать фрагмент";
+
+            const fragment = document.createElement("blockquote");
+            fragment.textContent = source.content;
+            fragment.style.display = "none";
+            fragment.style.margin = "0.3em 0";
+
+            toggle.addEventListener("click", function (event) {
+                event.preventDefault();
+                const isHidden = fragment.style.display === "none";
+                fragment.style.display = isHidden ? "block" : "none";
+                toggle.textContent = isHidden ? "скрыть фрагмент" : "показать фрагмент";
+            });
+
+            li.appendChild(link);
+            li.appendChild(meta);
+            li.appendChild(toggle);
+            li.appendChild(fragment);
             list.appendChild(li);
         });
+
         messages.appendChild(list);
         messages.scrollTop = messages.scrollHeight;
     }
