@@ -27,6 +27,7 @@ from app.services.document_service import (
     UnsupportedFileTypeError,
 )
 from app.services.llm import get_llm_provider
+from app.services.telegram_link_service import TelegramLinkService
 from app.services.workspace_service import WorkspaceNotFoundError, WorkspaceService
 from app.web.deps import ACCESS_TOKEN_COOKIE, get_current_web_user
 
@@ -323,3 +324,17 @@ async def ask_stream_web(
         stream_ask_response(llm_provider, service, chat_id, body.question, sources, messages),
         media_type="text/event-stream",
     )
+
+
+# --- Telegram ---
+
+
+@router.post("/telegram/link-code", response_class=HTMLResponse, response_model=None)
+async def telegram_link_code_web(
+    request: Request,
+    current_user: User = Depends(get_current_web_user),
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    service = TelegramLinkService(db)
+    code = await service.generate_link_code(current_user.id)
+    return templates.TemplateResponse(request, "partials/telegram_code.html", {"code": code})

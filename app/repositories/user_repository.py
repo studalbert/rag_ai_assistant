@@ -18,6 +18,10 @@ class UserRepository:
     async def get_by_id(self, user_id: uuid.UUID) -> User | None:
         return await self.db.get(User, user_id)
 
+    async def get_by_telegram_id(self, telegram_id: int) -> User | None:
+        result = await self.db.execute(select(User).where(User.telegram_id == telegram_id))
+        return result.scalar_one_or_none()
+
     async def create(self, user_data: UserCreate, hashed_password: str) -> User:
         user = User(email=user_data.email, hashed_password=hashed_password)
         self.db.add(user)

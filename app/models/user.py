@@ -1,7 +1,7 @@
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String
+from sqlalchemy import BigInteger, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, uuid_pk
@@ -19,6 +19,9 @@ class User(Base, TimestampMixin):
     # nullable, потому что пользователь может быть зарегистрирован только через Google OAuth
     hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     google_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+
+    # BigInteger, а не Integer — ID пользователей Telegram давно превысили диапазон int32
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(default=True)
 

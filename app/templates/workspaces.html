@@ -15,4 +15,12 @@
 </form>
 
 {% include "partials/workspace_list.html" %}
+
+<section style="margin-top: 3rem;">
+    <h3>Telegram-бот</h3>
+    <button hx-post="/web/telegram/link-code" hx-target="#telegram-code-box" hx-swap="innerHTML">
+        Получить код для привязки
+    </button>
+    <div id="telegram-code-box"></div>
+</section>
 {% endblock %}

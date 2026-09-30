@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
 from app.api.documents import router as documents_router
+from app.api.telegram import router as telegram_router
 from app.api.workspaces import router as workspaces_router
 from app.core.db import get_db
 from app.web.routes import router as web_router
@@ -16,6 +17,7 @@ app.include_router(auth_router)
 app.include_router(workspaces_router)
 app.include_router(documents_router)
 app.include_router(chat_router)
+app.include_router(telegram_router)
 app.include_router(web_router)
 
 
