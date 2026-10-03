@@ -37,6 +37,20 @@ services:
       redis:
         condition: service_healthy
 
+  bot:
+    build: .
+    container_name: rag_bot
+    restart: unless-stopped
+    command: python -m bot.main
+    env_file:
+      - .env
+    volumes:
+      - ./bot:/code/bot
+      - bot_data:/code/bot_data   # локальная SQLite-БД бота с привязками аккаунтов
+    depends_on:
+      api:
+        condition: service_started
+
   db:
     image: pgvector/pgvector:pg16   # Postgres 16 с уже вкомпилированным расширением pgvector
     container_name: rag_db
@@ -71,3 +85,4 @@ volumes:
   pgdata:
   uploads_data:
   hf_cache:
+  bot_data:

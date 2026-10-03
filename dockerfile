@@ -22,6 +22,7 @@ COPY alembic.ini .
 COPY migrations ./migrations
 COPY app ./app
 COPY tests ./tests
+COPY bot ./bot
 
 EXPOSE 8000
 
