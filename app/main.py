@@ -1,5 +1,8 @@
 from fastapi import Depends, FastAPI
 from fastapi.responses import RedirectResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,9 +12,14 @@ from app.api.documents import router as documents_router
 from app.api.telegram import router as telegram_router
 from app.api.workspaces import router as workspaces_router
 from app.core.db import get_db
+from app.core.rate_limit import limiter
 from app.web.routes import router as web_router
 
 app = FastAPI(title="AI RAG Assistant")
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 app.include_router(auth_router)
 app.include_router(workspaces_router)

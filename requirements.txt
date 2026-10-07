@@ -35,6 +35,9 @@ python-dotenv==1.0.1
 aiogram==3.15.0
 aiosqlite==0.20.0
 
+# --- Rate limiting ---
+slowapi==0.1.9
+
 # --- Dev tools (пригодятся уже на этапе 0) ---
 ruff==0.7.0
 mypy==1.13.0

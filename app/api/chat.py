@@ -1,11 +1,12 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.db import get_db
+from app.core.rate_limit import limiter
 from app.models.user import User
 from app.schemas.chat import AskRequest, AskResponse
 from app.services.chat_service import ChatNotFoundError, ChatService
@@ -17,7 +18,9 @@ router = APIRouter(prefix="/workspaces/{workspace_id}", tags=["chat"])
 
 
 @router.post("/ask", response_model=AskResponse)
+@limiter.limit("20/minute")
 async def ask(
+    request: Request,
     workspace_id: uuid.UUID,
     body: AskRequest,
     current_user: User = Depends(get_current_user),
@@ -35,7 +38,9 @@ async def ask(
 
 
 @router.post("/ask/stream")
+@limiter.limit("20/minute")
 async def ask_stream(
+    request: Request,
     workspace_id: uuid.UUID,
     body: AskRequest,
     current_user: User = Depends(get_current_user),
@@ -54,3 +59,4 @@ async def ask_stream(
         stream_ask_response(llm_provider, service, chat_id, body.question, sources, messages),
         media_type="text/event-stream",
     )
+

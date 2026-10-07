@@ -93,3 +93,4 @@ async def clear_active_chat(telegram_id: int) -> None:
             (telegram_id,),
         )
         await db.commit()
+

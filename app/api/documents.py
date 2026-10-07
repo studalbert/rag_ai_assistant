@@ -1,10 +1,11 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_storage
 from app.core.db import get_db
+from app.core.rate_limit import limiter
 from app.core.storage import FileStorage
 from app.models.user import User
 from app.schemas.document import DocumentRead
@@ -19,7 +20,9 @@ router = APIRouter(prefix="/workspaces/{workspace_id}/documents", tags=["documen
 
 
 @router.post("", response_model=DocumentRead, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def upload_document(
+    request: Request,
     workspace_id: uuid.UUID,
     file: UploadFile,
     current_user: User = Depends(get_current_user),
