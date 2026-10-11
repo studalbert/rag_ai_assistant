@@ -26,6 +26,7 @@ from app.services.document_service import (
     FileTooLargeError,
     UnsupportedFileTypeError,
 )
+from app.services.errors import QuotaExceededError
 from app.services.llm import get_llm_provider
 from app.services.telegram_link_service import TelegramLinkService
 from app.services.workspace_service import WorkspaceNotFoundError, WorkspaceService
@@ -202,7 +203,7 @@ async def upload_document_web(
             content_type=file.content_type or "application/octet-stream",
             content=content,
         )
-    except (UnsupportedFileTypeError, FileTooLargeError) as exc:
+    except (UnsupportedFileTypeError, FileTooLargeError, QuotaExceededError) as exc:
         upload_error = str(exc)
     except WorkspaceNotFoundError:
         return RedirectResponse(url="/web/workspaces", status_code=status.HTTP_303_SEE_OTHER)
@@ -318,6 +319,10 @@ async def ask_stream_web(
         )
     except (WorkspaceNotFoundError, ChatNotFoundError) as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except QuotaExceededError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=str(exc)
+        ) from exc
 
     llm_provider = get_llm_provider()
     return StreamingResponse(

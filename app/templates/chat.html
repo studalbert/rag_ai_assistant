@@ -99,6 +99,17 @@
                 body: JSON.stringify({ question: question, chat_id: chatId }),
             });
 
+            if (!response.ok) {
+                // Ошибка пришла обычным JSON-ответом ДО начала стрима (лимит, 404 и т.д.)
+                let detail = "Ошибка " + response.status;
+                try {
+                    const data = await response.json();
+                    if (data.detail) detail = data.detail;
+                } catch (parseError) {}
+                answerSpan.textContent = detail;
+                return;
+            }
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = "";

@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.storage import FileStorage
 from app.models.document import Document
 from app.repositories.document_repository import DocumentRepository
+from app.services.errors import QuotaExceededError
 from app.services.workspace_service import WorkspaceService
 from app.tasks.document_tasks import process_document
 
@@ -29,6 +30,10 @@ class FileTooLargeError(Exception):
 class DocumentNotFoundError(Exception):
     """Тот же принцип, что и с WorkspaceNotFoundError: документ из чужого
     workspace снаружи выглядит так же, как несуществующий — 404."""
+    pass
+
+
+class DocumentLimitExceededError(QuotaExceededError):
     pass
 
 
@@ -56,6 +61,15 @@ class DocumentService:
         max_size_bytes = settings.max_upload_size_mb * 1024 * 1024
         if len(content) > max_size_bytes:
             raise FileTooLargeError(f"File exceeds {settings.max_upload_size_mb}MB limit")
+
+        # Лимит проверяем до записи файла на диск — отклонённая загрузка
+        # не должна оставлять после себя "осиротевший" файл в хранилище
+        documents_count = await self.repo.count_by_owner(owner_id)
+        if documents_count >= settings.max_documents_per_user:
+            raise DocumentLimitExceededError(
+                f"Достигнут лимит документов ({settings.max_documents_per_user}). "
+                "Оформите подписку, чтобы загрузить больше."
+            )
 
         file_path = await self.storage.save(content, filename)
 

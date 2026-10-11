@@ -1,18 +1,6 @@
 import pytest
 from httpx import AsyncClient
 
-from app.core.rate_limit import limiter
-
-
-@pytest.fixture(autouse=True)
-def _reset_rate_limiter():
-    """slowapi хранит счётчики в памяти процесса — общие для всех тестов,
-    если не сбрасывать явно между ними. Без этого один тест мог бы "съесть"
-    лимит, из-за которого упал бы совершенно другой, не связанный тест."""
-    limiter.reset()
-    yield
-    limiter.reset()
-
 
 @pytest.mark.asyncio
 async def test_register_rate_limited_after_five_requests(client: AsyncClient) -> None:

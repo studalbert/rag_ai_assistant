@@ -1,13 +1,16 @@
 import uuid
 from collections.abc import Sequence
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models.enums import MessageRole
 from app.repositories.chat_repository import ChatRepository
 from app.repositories.chunk_repository import ChunkRepository
 from app.schemas.chat import SourceChunk
 from app.services.embeddings import get_embedding_provider
+from app.services.errors import QuotaExceededError
 from app.services.workspace_service import WorkspaceService
 
 SYSTEM_PROMPT = (
@@ -22,6 +25,10 @@ SYSTEM_PROMPT = (
 class ChatNotFoundError(Exception):
     """Тот же принцип, что и с WorkspaceNotFoundError: чужой или несуществующий
     чат снаружи выглядит одинаково — 404, без утечки самого факта существования."""
+    pass
+
+
+class QuestionLimitExceededError(QuotaExceededError):
     pass
 
 
@@ -83,6 +90,17 @@ class ChatService:
             raise ChatNotFoundError(f"Chat {chat_id} not found")
         return chat.id
 
+    async def _check_daily_question_quota(self, owner_id: uuid.UUID) -> None:
+        # "Сегодня" — с полуночи UTC. Считаем по уже сохранённым вопросам в БД:
+        # источник правды один, отдельные счётчики не могут разойтись с реальностью
+        start_of_day = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        used = await self.chat_repo.count_user_questions_since(owner_id, start_of_day)
+        if used >= settings.daily_question_limit:
+            raise QuestionLimitExceededError(
+                f"Дневной лимит вопросов ({settings.daily_question_limit}) исчерпан. "
+                "Оформите подписку, чтобы продолжить."
+            )
+
     async def prepare_ask(
         self,
         workspace_id: uuid.UUID,
@@ -92,9 +110,12 @@ class ChatService:
         chat_id: uuid.UUID | None = None,
     ) -> tuple[uuid.UUID, list[SourceChunk], list[dict[str, str]]]:
         """Всё, что можно сделать ДО начала стриминга: проверка владения workspace
-        и чатом, векторный поиск, сборка промпта. См. комментарий в роутере о том,
-        почему это отделено от самого стриминга."""
+        и чатом, проверка лимита, векторный поиск, сборка промпта. См. комментарий
+        в роутере о том, почему это отделено от самого стриминга."""
         await self.workspace_service.get_owned_workspace(workspace_id, owner_id)
+        # Лимит проверяем до создания чата — иначе отклонённый запрос оставлял бы
+        # после себя пустой чат
+        await self._check_daily_question_quota(owner_id)
         resolved_chat_id = await self._get_or_create_chat(workspace_id, chat_id)
         sources = await self._search(workspace_id, question, top_k)
         messages = self.build_prompt(question, sources)

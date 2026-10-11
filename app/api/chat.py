@@ -11,6 +11,7 @@ from app.models.user import User
 from app.schemas.chat import AskRequest, AskResponse
 from app.services.chat_service import ChatNotFoundError, ChatService
 from app.services.chat_streaming import stream_ask_response
+from app.services.errors import QuotaExceededError
 from app.services.llm import get_llm_provider
 from app.services.workspace_service import WorkspaceNotFoundError
 
@@ -53,10 +54,13 @@ async def ask_stream(
         )
     except (WorkspaceNotFoundError, ChatNotFoundError) as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except QuotaExceededError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=str(exc)
+        ) from exc
 
     llm_provider = get_llm_provider()
     return StreamingResponse(
         stream_ask_response(llm_provider, service, chat_id, body.question, sources, messages),
         media_type="text/event-stream",
     )
-

@@ -1,5 +1,5 @@
 import os
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
 
 import pytest_asyncio
@@ -10,6 +10,7 @@ from sqlalchemy.pool import NullPool
 
 from app.api.deps import get_storage
 from app.core.db import get_db
+from app.core.rate_limit import limiter
 from app.core.storage import LocalFileStorage
 from app.main import app
 from app.models import Base
@@ -73,3 +74,14 @@ def override_storage(tmp_path: Path) -> AsyncGenerator[None, None]:
     )
     yield
     del app.dependency_overrides[get_storage]
+
+
+@pytest_asyncio.fixture(autouse=True)
+def reset_rate_limiter() -> Generator[None, None, None]:
+    """slowapi хранит счётчики в памяти процесса — общие для всех тестов.
+    Без сброса между тестами лимиты из одного теста (например, 5 регистраций
+    в минуту) "протекали" бы в другие и роняли их с 429."""
+    limiter.reset()
+    yield
+    limiter.reset()
+    

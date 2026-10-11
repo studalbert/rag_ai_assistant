@@ -14,6 +14,7 @@ from app.services.document_service import (
     FileTooLargeError,
     UnsupportedFileTypeError,
 )
+from app.services.errors import QuotaExceededError
 from app.services.workspace_service import WorkspaceNotFoundError
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/documents", tags=["documents"])
@@ -49,6 +50,10 @@ async def upload_document(
     except FileTooLargeError as exc:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc)
+        ) from exc
+    except QuotaExceededError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=str(exc)
         ) from exc
 
     return DocumentRead.model_validate(document)

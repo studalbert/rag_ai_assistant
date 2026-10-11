@@ -1,10 +1,11 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document
 from app.models.enums import DocumentStatus
+from app.models.workspace import Workspace
 
 
 class DocumentRepository:
@@ -40,3 +41,12 @@ class DocumentRepository:
 
     async def get_by_id(self, document_id: uuid.UUID) -> Document | None:
         return await self.db.get(Document, document_id)
+
+    async def count_by_owner(self, owner_id: uuid.UUID) -> int:
+        """Всего документов пользователя во всех его workspace."""
+        result = await self.db.execute(
+            select(func.count(Document.id))
+            .join(Workspace, Document.workspace_id == Workspace.id)
+            .where(Workspace.owner_id == owner_id)
+        )
+        return result.scalar_one()

@@ -80,7 +80,12 @@ async def ask_stream(
             headers={"Authorization": f"Bearer {access_token}"},
         ) as response:
             if response.status_code != 200:
-                raise AskError(f"Backend returned {response.status_code}")
+                await response.aread()
+                try:
+                    detail = response.json().get("detail")
+                except ValueError:
+                    detail = None
+                raise AskError(detail or f"Backend returned {response.status_code}")
 
             buffer = ""
             async for text_chunk in response.aiter_text():
