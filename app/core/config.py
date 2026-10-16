@@ -33,5 +33,9 @@ class Settings(BaseSettings):
     # yandexgpt-lite — быстрее и дешевле; yandexgpt — качественнее, если понадобится
     yandex_gpt_model: str = "yandexgpt-lite"
 
+    llm_timeout_seconds: float = 60.0
+    llm_max_retries: int = 3
+    llm_retry_base_delay: float = 1.0  # секунды; backoff: 1, 2, 4...
+
 
 settings = Settings()

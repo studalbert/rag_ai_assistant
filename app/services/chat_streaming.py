@@ -4,7 +4,12 @@ from collections.abc import AsyncIterator
 
 from app.schemas.chat import SourceChunk
 from app.services.chat_service import ChatService
-from app.services.llm import LLMProvider
+from app.services.llm import (
+    LLMProvider,
+    LLMRateLimitError,
+    LLMTimeoutError,
+    LLMUnavailableError,
+)
 
 
 def sse(event: dict) -> str:
@@ -35,10 +40,12 @@ async def stream_ask_response(
         async for token in llm_provider.stream_completion(messages):
             answer_parts.append(token)
             yield sse({"type": "token", "content": token})
-    except Exception as exc:  # noqa: BLE001 — сбой у внешнего LLM-провайдера может
-        # прийти как угодно (таймаут, лимиты, недоступность). Отдаём это как
-        # SSE-событие ошибки, не сохраняя неполный ответ в историю чата.
+    except (LLMTimeoutError, LLMRateLimitError, LLMUnavailableError) as exc:
+        # Понятное сообщение для UI; неполный ответ в историю не пишем
         yield sse({"type": "error", "message": str(exc)})
+        return
+    except Exception:
+        yield sse({"type": "error", "message": "LLM provider error. Please try again."})
         return
 
     full_answer = "".join(answer_parts)
