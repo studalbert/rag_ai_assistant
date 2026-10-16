@@ -10,6 +10,9 @@ from app.services.llm import (
     LLMTimeoutError,
     LLMUnavailableError,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def sse(event: dict) -> str:
@@ -41,10 +44,11 @@ async def stream_ask_response(
             answer_parts.append(token)
             yield sse({"type": "token", "content": token})
     except (LLMTimeoutError, LLMRateLimitError, LLMUnavailableError) as exc:
-        # Понятное сообщение для UI; неполный ответ в историю не пишем
+        logger.warning("llm_stream_failed chat_id=%s error=%s", chat_id, exc)
         yield sse({"type": "error", "message": str(exc)})
         return
     except Exception:
+        logger.exception("llm_stream_unexpected_error chat_id=%s", chat_id)
         yield sse({"type": "error", "message": "LLM provider error. Please try again."})
         return
 

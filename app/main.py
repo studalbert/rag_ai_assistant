@@ -12,8 +12,13 @@ from app.api.documents import router as documents_router
 from app.api.telegram import router as telegram_router
 from app.api.workspaces import router as workspaces_router
 from app.core.db import get_db
+from app.core.logging import setup_logging
 from app.core.rate_limit import limiter
+from app.core.sentry import init_sentry
 from app.web.routes import router as web_router
+
+setup_logging()
+init_sentry()
 
 app = FastAPI(title="AI RAG Assistant")
 

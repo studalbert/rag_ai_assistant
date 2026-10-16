@@ -11,7 +11,9 @@ from app.repositories.document_repository import DocumentRepository
 from app.services.chunking import chunk_text
 from app.services.embeddings import get_embedding_provider
 from app.services.text_extraction import TextExtractionError, extract_text
+import logging
 
+logger = logging.getLogger(__name__)
 
 async def _process_document_async(document_id: uuid.UUID) -> None:
     try:
@@ -22,9 +24,11 @@ async def _process_document_async(document_id: uuid.UUID) -> None:
             if document is None:
                 # Документ мог быть удалён между постановкой задачи в очередь и её
                 # выполнением — не ошибка воркера, просто нечего обрабатывать
+                logger.warning("document_missing document_id=%s", document_id)
                 return
 
             document.status = DocumentStatus.PROCESSING
+            logger.info("document_processing_started document_id=%s", document_id)
             await db.commit()
 
             storage = LocalFileStorage(base_dir=settings.upload_dir)
@@ -35,6 +39,11 @@ async def _process_document_async(document_id: uuid.UUID) -> None:
             except (TextExtractionError, OSError) as exc:
                 document.status = DocumentStatus.FAILED
                 document.error_message = str(exc)
+                logger.exception(
+                    "document_processing_failed document_id=%s reason=%s",
+                    document_id,
+                    document.error_message,
+                )
                 await db.commit()
                 return
 
@@ -45,6 +54,11 @@ async def _process_document_async(document_id: uuid.UUID) -> None:
             if not chunks:
                 document.status = DocumentStatus.FAILED
                 document.error_message = "No content left after chunking"
+                logger.exception(
+                    "document_processing_failed document_id=%s reason=%s",
+                    document_id,
+                    document.error_message,
+                )
                 await db.commit()
                 return
 
@@ -57,6 +71,11 @@ async def _process_document_async(document_id: uuid.UUID) -> None:
                 # аккуратно перевести в статус failed, а не уронить воркер
                 document.status = DocumentStatus.FAILED
                 document.error_message = f"Embedding generation failed: {exc}"
+                logger.exception(
+                    "document_processing_failed document_id=%s reason=%s",
+                    document_id,
+                    document.error_message,
+                )
                 await db.commit()
                 return
 
@@ -64,6 +83,11 @@ async def _process_document_async(document_id: uuid.UUID) -> None:
             await chunk_repo.bulk_create(document.id, chunks, embeddings)
 
             document.status = DocumentStatus.READY
+            logger.info(
+                "document_processing_finished document_id=%s chunks=%s",
+                document_id,
+                len(chunks),
+            )
             await db.commit()
     finally:
         # Критично для Celery: каждый вызов process_document оборачивается в свой

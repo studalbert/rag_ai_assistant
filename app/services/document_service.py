@@ -9,6 +9,9 @@ from app.repositories.document_repository import DocumentRepository
 from app.services.errors import QuotaExceededError
 from app.services.workspace_service import WorkspaceService
 from app.tasks.document_tasks import process_document
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Разрешённые типы файлов на этом этапе — расширим при добавлении парсинга под каждый формат
 ALLOWED_CONTENT_TYPES = {
@@ -83,7 +86,13 @@ class DocumentService:
         # .delay() — асинхронная (в смысле Celery, не asyncio) постановка задачи в очередь:
         # мы не ждём, пока файл обработается, эндпоинт сразу возвращает ответ пользователю
         process_document.delay(str(document.id))
-
+        logger.info(
+            "document_uploaded document_id=%s workspace_id=%s owner_id=%s filename=%s",
+            document.id,
+            workspace_id,
+            owner_id,
+            filename,
+        )
         return document
 
     async def list_documents(self, workspace_id: uuid.UUID, owner_id: uuid.UUID) -> list[Document]:

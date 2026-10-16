@@ -15,7 +15,9 @@ from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.token import TokenPair
 from app.schemas.user import UserCreate
+import logging
 
+logger = logging.getLogger(__name__)
 
 class EmailAlreadyRegisteredError(Exception):
     pass
@@ -35,7 +37,9 @@ class AuthService:
             raise EmailAlreadyRegisteredError(f"Email {user_data.email} already registered")
 
         hashed = hash_password(user_data.password)
-        return await self.repo.create(user_data, hashed)
+        user = await self.repo.create(user_data, hashed)
+        logger.info("user_registered user_id=%s email=%s", user.id, user.email)
+        return user
 
     async def authenticate(self, email: str, password: str) -> User:
         user = await self.repo.get_by_email(email)
@@ -46,6 +50,7 @@ class AuthService:
         if not verify_password(password, user.hashed_password):
             raise InvalidCredentialsError("Invalid email or password")
 
+        logger.info("user_login user_id=%s email=%s", user.id, user.email)
         return user
 
     def issue_tokens(self, user_id: uuid.UUID) -> TokenPair:

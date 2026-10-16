@@ -37,5 +37,10 @@ class Settings(BaseSettings):
     llm_max_retries: int = 3
     llm_retry_base_delay: float = 1.0  # секунды; backoff: 1, 2, 4...
 
+    # Observability
+    sentry_dsn: str = ""              # пусто=Sentry выключен
+    environment: str = "development"  # development|staging|production
+    log_level: str = "INFO"
+
 
 settings = Settings()

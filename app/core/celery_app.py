@@ -1,6 +1,11 @@
 from celery import Celery
 
 from app.core.config import settings
+from app.core.logging import setup_logging
+from app.core.sentry import init_sentry
+
+setup_logging()
+init_sentry()
 
 celery_app = Celery(
     "rag_assistant",
